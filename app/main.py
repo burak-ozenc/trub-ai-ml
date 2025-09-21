@@ -5,7 +5,7 @@ from datetime import datetime
 
 from app.models.trumpet_detector import TrumpetDetector
 from app.utils.audio_processor import load_and_preprocess_audio
-from app.utils.feature_extractor import extract_acoustic_features, generate_recommendations, generate_warning
+from app.utils.feature_extractor import extract_acoustic_features
 from app.schemas.response import TrumpetDetectionResult
 
 app = FastAPI(
@@ -40,16 +40,16 @@ async def detect_trumpet(audio_file: UploadFile = File(..., description="WAV aud
         is_trumpet, confidence = detector.predict(features)
 
         # Generate recommendations and warnings
-        recommendations = generate_recommendations(features, confidence)
-        warning_message = generate_warning(features, confidence)
+        # recommendations = generate_recommendations(features, confidence)
+        # warning_message = generate_warning(features, confidence)
 
         # Prepare response
         result = TrumpetDetectionResult(
             is_trumpet=is_trumpet,
             confidence_score=confidence,
             detection_features=features,
-            warning_message=warning_message,
-            recommendations=recommendations
+            warning_message="warning_message",
+            recommendations=[]
         )
 
         return result
