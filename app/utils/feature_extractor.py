@@ -66,4 +66,45 @@ def extract_acoustic_features(y, sr):
 
     return features
 
-# Rest of the functions remain the same...
+def generate_recommendations(features, confidence):
+    """Generate recommendations based on feature analysis"""
+    recommendations = []
+
+    if not features['energy_sufficient']:
+        recommendations.extend([
+            "Play louder and with more confidence",
+            "Play with more volume - the signal is too quiet"
+        ])
+
+    if not features['centroid_in_range']:
+        recommendations.append("Check the pitch range of the trumpet")
+
+    if not features['harmonic_sufficient']:
+        recommendations.append("Work on tone quality - more harmonic content needed")
+
+    if not features['has_pitch_content']:
+        recommendations.append("Ensure you're playing definite pitches")
+
+    if not features['pitch_in_trumpet_range']:
+        recommendations.append("Check if you're playing in the trumpet's range")
+
+    if confidence < 0.7:
+        recommendations.extend([
+            "Ensure proper microphone placement",
+            "Check for background noise interference"
+        ])
+
+    return list(set(recommendations))  # Remove duplicates
+
+def generate_warning(features, confidence):
+    """Generate warning message based on feature analysis"""
+    if confidence < 0.6:
+        return "Weak trumpet signal detected. Audio quality may affect analysis accuracy."
+
+    if not features['energy_sufficient']:
+        return "Low energy signal. Trumpet may be too quiet or too far from microphone."
+
+    if not features['has_pitch_content']:
+        return "Limited pitch content detected. This may not be a pitched instrument."
+
+    return None

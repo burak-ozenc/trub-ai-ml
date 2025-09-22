@@ -1,49 +1,58 @@
 ﻿import joblib
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
 import os
 
 from app.utils.feature_extractor import extract_acoustic_features
 
+
 class TrumpetDetector:
-    def __init__(self, model_path=None):
+    def __init__(self, model_path=None, scaler_path=None):
         self.model = None
+        self.scaler = None
         self.feature_columns = None
         self.model_loaded = False
 
-        if model_path and os.path.exists(model_path):
-            self.load_model(model_path)
+        if model_path and os.path.exists(model_path) and scaler_path and os.path.exists(scaler_path):
+            self.load_model(model_path, scaler_path)
         else:
             # Initialize with a simple model (to be trained)
             self.model = RandomForestClassifier(n_estimators=100, random_state=42)
             self.model_loaded = False
 
-    def load_model(self, model_path):
-        """Load a pre-trained model"""
+    def load_model(self, model_path, scaler_path):
+        """Load a pre-trained model and scaler"""
         try:
+            # Load model
             loaded_data = joblib.load(model_path)
             self.model = loaded_data['model']
             self.feature_columns = loaded_data['feature_columns']
+
+            # Load scaler
+            self.scaler = joblib.load(scaler_path)
+
             self.model_loaded = True
-            print(f"Model loaded successfully from {model_path}")
+            print(f"Model and scaler loaded successfully")
         except Exception as e:
-            print(f"Error loading model: {str(e)}")
+            print(f"Error loading model or scaler: {str(e)}")
             self.model_loaded = False
 
-    def save_model(self, model_path):
-        """Save the trained model"""
-        if self.model is not None and self.feature_columns is not None:
-            data_to_save = {
+    def save_model(self, model_path, scaler_path):
+        """Save the trained model and scaler"""
+        if self.model is not None and self.feature_columns is not None and self.scaler is not None:
+            model_data = {
                 'model': self.model,
                 'feature_columns': self.feature_columns
             }
-            joblib.dump(data_to_save, model_path)
-            print(f"Model saved successfully to {model_path}")
+
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            joblib.dump(model_data, model_path)
+            joblib.dump(self.scaler, scaler_path)
+            print(f"Model and scaler saved successfully")
         else:
-            print("No model to save")
+            print("No model or scaler to save")
 
     def prepare_features(self, features_dict):
         """Convert features dictionary to model input format"""
@@ -69,8 +78,13 @@ class TrumpetDetector:
 
         try:
             features_array, feature_names = self.prepare_features(features_dict)
-            prediction = self.model.predict(features_array)
-            probability = self.model.predict_proba(features_array)
+
+            # Scale the features
+            features_scaled = self.scaler.transform(features_array)
+
+            # Make prediction
+            prediction = self.model.predict(features_scaled)
+            probability = self.model.predict_proba(features_scaled)
 
             is_trumpet = bool(prediction[0])
             confidence = float(probability[0][1] if is_trumpet else probability[0][0])

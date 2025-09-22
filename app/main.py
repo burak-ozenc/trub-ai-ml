@@ -1,11 +1,12 @@
 ﻿from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse
 import aiofiles
 import os
 from datetime import datetime
 
 from app.models.trumpet_detector import TrumpetDetector
 from app.utils.audio_processor import load_and_preprocess_audio
-from app.utils.feature_extractor import extract_acoustic_features
+from app.utils.feature_extractor import extract_acoustic_features, generate_recommendations, generate_warning
 from app.schemas.response import TrumpetDetectionResult
 
 app = FastAPI(
@@ -14,8 +15,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Initialize the detector
-detector = TrumpetDetector("app/data/trained_models/trumpet_detector.pkl")
+# Initialize the detector with model and scaler paths
+model_path = "app/data/trained_models/trumpet_detector.pkl"
+scaler_path = "app/data/trained_models/scaler.pkl"
+detector = TrumpetDetector(model_path, scaler_path)
 
 @app.post("/detect-trumpet", response_model=TrumpetDetectionResult)
 async def detect_trumpet(audio_file: UploadFile = File(..., description="WAV audio file to analyze")):
@@ -35,21 +38,23 @@ async def detect_trumpet(audio_file: UploadFile = File(..., description="WAV aud
 
         # Extract features
         features = extract_acoustic_features(y, sr)
+        
+        print('features: ', features)
 
         # Make prediction
         is_trumpet, confidence = detector.predict(features)
 
         # Generate recommendations and warnings
-        # recommendations = generate_recommendations(features, confidence)
-        # warning_message = generate_warning(features, confidence)
+        recommendations = generate_recommendations(features, confidence)
+        warning_message = generate_warning(features, confidence)
 
         # Prepare response
         result = TrumpetDetectionResult(
             is_trumpet=is_trumpet,
             confidence_score=confidence,
             detection_features=features,
-            warning_message="warning_message",
-            recommendations=[]
+            warning_message=warning_message,
+            recommendations=recommendations
         )
 
         return result
@@ -61,21 +66,4 @@ async def detect_trumpet(audio_file: UploadFile = File(..., description="WAV aud
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "model_loaded": detector.model_loaded,
-        "service": "Trumpet Detection API"
-    }
-
-@app.get("/")
-async def root():
-    return {
-        "message": "Trumpet Detection API",
-        "version": "1.0.0",
-        "endpoints": {
-            "detect-trumpet": "POST /detect-trumpet",
-            "health": "GET /health"
-        }
-    }
+# Rest of the file remains the same...
